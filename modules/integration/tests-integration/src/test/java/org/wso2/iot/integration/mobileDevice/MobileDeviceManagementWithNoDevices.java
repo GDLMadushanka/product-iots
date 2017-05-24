@@ -21,9 +21,17 @@ package org.wso2.iot.integration.mobileDevice;
 import junit.framework.Assert;
 import org.apache.commons.httpclient.HttpStatus;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 import org.wso2.carbon.automation.engine.context.TestUserMode;
-import org.wso2.iot.integration.common.*;
+import org.wso2.iot.integration.common.Constants;
+import org.wso2.iot.integration.common.IOTHttpClient;
+import org.wso2.iot.integration.common.IOTResponse;
+import org.wso2.iot.integration.common.OAuthUtil;
+import org.wso2.iot.integration.common.TestBase;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class contains integration tests for API  Mobile Device Management with No Devices Enrolled.
@@ -31,10 +39,35 @@ import org.wso2.iot.integration.common.*;
 public class MobileDeviceManagementWithNoDevices extends TestBase {
     private IOTHttpClient client;
 
-    @BeforeClass(alwaysRun = true, groups = { Constants.MobileDeviceManagement.MOBILE_DEVICE_MANAGEMENT_GROUP})
-    public void initTest() throws Exception {
+    @Factory(dataProvider = "userModeProvider")
+    public MobileDeviceManagementWithNoDevices(TestUserMode userMode) {
+        this.userMode = userMode;
+    }
+
+    /**
+     * @BeforeSuite annotation is added to run this verification before the test suite starts.
+     * As in IoT server, apis are published after the server startup. Due to that the generated token doesn't get
+     * required scope.
+     * This method delays test suit startup until the tokens get required scopes.
+     * @throws Exception Exception
+     */
+    @BeforeSuite
+    public void verifyApiPublishing() throws Exception {
         super.init(TestUserMode.SUPER_TENANT_ADMIN);
-        String accessTokenString = "Bearer " + OAuthUtil.getOAuthToken(backendHTTPSURL, backendHTTPSURL);
+        long startTime = System.currentTimeMillis();
+
+        while (!checkScopes(Constants.APIApplicationRegistration.PERMISSION_LIST)) {
+            TimeUnit.SECONDS.sleep(5);
+            long WAIT_TIME = 30000;
+            if (System.currentTimeMillis() - startTime > WAIT_TIME) {
+                Assert.fail("Required APIs are not deployed after waiting for " + WAIT_TIME + " time-out has happened");
+            }
+        }
+    }
+
+    @BeforeClass(alwaysRun = true, groups = { Constants.UserManagement.USER_MANAGEMENT_GROUP})
+    public void initTest() throws Exception {
+        super.init(userMode);
         this.client = new IOTHttpClient(backendHTTPSURL, Constants.APPLICATION_JSON, accessTokenString);
     }
 
@@ -42,14 +75,11 @@ public class MobileDeviceManagementWithNoDevices extends TestBase {
     public void testCountDevicesWithNoDevices() throws Exception {
         IOTResponse response = client.get(Constants.MobileDeviceManagement.GET_DEVICE_COUNT_ENDPOINT);
         Assert.assertEquals(HttpStatus.SC_OK, response.getStatus());
-        Assert.assertEquals(Constants.ZERO, response.getBody());
+        Assert.assertEquals(Constants.MobileDeviceManagement.NO_DEVICE, response.getBody());
     }
 
-//    @Test(description = "Test view devices with no added devices")
-//    public void testViewDevicesWithNoDevices() throws Exception {
-//        IOTResponse response = client.get(Constants.MobileDeviceManagement.GET_ALL_DEVICES_ENDPOINT);
-//        Assert.assertEquals(HttpStatus.SC_OK, response.getStatus());
-//        Assert.assertEquals(response.getBody(), Constants.NULL);
-//    }
-
+    private boolean checkScopes(String permissionsList) throws Exception {
+        String tokenString = OAuthUtil.getScopes(backendHTTPSURL, backendHTTPSURL);
+        return tokenString.contains(permissionsList);
+    }
 }
