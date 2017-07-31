@@ -18,8 +18,8 @@
 
 package org.wso2.iot.integration.samples;
 
-import junit.framework.Assert;
 import org.apache.commons.httpclient.HttpStatus;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -85,21 +85,19 @@ public class MobileQSGTestCase extends TestBase {
         RestClient appManagerRestClient = new RestClient(automationContext.getContextUrls().getWebAppURLHttps(),
                 Constants.APPLICATION_JSON, accessTokenString);
         HttpResponse response = appManagerRestClient.get(Constants.QSGManagement.GET_MOBILE_APPS_ENDPONT);
-        Assert.assertEquals("Catalog mobile app is not uploaded successfully", HttpStatus.SC_OK,
-                response.getResponseCode());
-        Assert.assertTrue("Catalog app addition through script is not successful",
-                response.getData().contains("Catalog"));
+        Assert.assertEquals(response.getResponseCode(), HttpStatus.SC_OK);
+        Assert.assertTrue(response.getData().contains("WSO2Con-Android"),
+                "Con-App-Android addition through script is not successful");
     }
 
     @Test(description = "This test case tests the policy creation through qsg script", dependsOnMethods = {"executeQSGScript"})
     public void testPolicyCreation() throws Exception {
         HttpResponse response = client.get(Constants.PolicyManagement.VIEW_POLICY_LIST_ENDPOINT + "?offset=0&limit=10");
-        Assert.assertEquals("Policy upload view mobile-qsg script failed", HttpStatus.SC_OK,
-                response.getResponseCode());
-        Assert.assertTrue("Android pass-code policy is not added from qsg script",
-                response.getData().contains("android-passcode-policy1"));
-        Assert.assertTrue("Windows pass-code policy is not added from qsg script",
-                response.getData().contains("windows-passcode-policy1"));
+        Assert.assertEquals(response.getResponseCode(), HttpStatus.SC_OK);
+        Assert.assertTrue(response.getData().contains("android-passcode-policy1"),"Android pass-code policy is not " +
+                "added from qsg script");
+        Assert.assertTrue(response.getData().contains("windows-passcode-policy1"),"Windows pass-code policy is not " +
+                "added from qsg script");
     }
 
     @AfterClass(alwaysRun = true)
